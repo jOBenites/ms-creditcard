@@ -3,8 +3,11 @@ package com.bank.mscreditcard.controller;
 import com.bank.mscreditcard.dto.CreditCardResponse;
 import com.bank.mscreditcard.dto.CreditCardUpdateRequest;
 import com.bank.mscreditcard.dto.IssueCardRequest;
+import com.bank.mscreditcard.dto.MovementRequest;
+import com.bank.mscreditcard.dto.MovementResponse;
 import com.bank.mscreditcard.model.CreditCard;
 import com.bank.mscreditcard.service.CreditCardService;
+import com.bank.mscreditcard.service.MovementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +24,8 @@ import java.util.List;
 
 /**
  * Controlador REST para la gestion de tarjetas de credito.
- * Expone emision de tarjetas (personales y empresariales) y CRUD completo.
+ * Expone emision de tarjetas (personales y empresariales), CRUD completo,
+ * registro de consumos y consulta de movimientos.
  */
 @RestController
 @RequestMapping("/credit-cards")
@@ -29,6 +33,7 @@ import java.util.List;
 public class CreditCardController {
 
     private final CreditCardService creditCardService;
+    private final MovementService movementService;
 
     /**
      * Emite una nueva tarjeta de credito.
@@ -94,5 +99,35 @@ public class CreditCardController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Registra un consumo sobre una tarjeta de credito.
+     *
+     * @param id identificador de la tarjeta
+     * @param request solicitud con el monto del consumo
+     * @return el movimiento registrado con codigo 201, o 404 si la tarjeta no existe
+     */
+    @PostMapping("/{id}/charges")
+    public ResponseEntity<MovementResponse> charge(
+            @PathVariable String id,
+            @RequestBody MovementRequest request) {
+        return movementService.charge(id, request.getAmount())
+                .map(movement -> ResponseEntity.status(HttpStatus.CREATED)
+                        .body(movementService.toMovementResponse(movement)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Lista los movimientos de una tarjeta del mas reciente al mas antiguo.
+     *
+     * @param id identificador de la tarjeta
+     * @return lista de movimientos, o 404 si la tarjeta no existe
+     */
+    @GetMapping("/{id}/movements")
+    public ResponseEntity<List<MovementResponse>> getMovements(@PathVariable String id) {
+        return movementService.findMovements(id)
+                .map(movements -> ResponseEntity.ok(movementService.toMovementResponseList(movements)))
+                .orElse(ResponseEntity.notFound().build());
     }
 }

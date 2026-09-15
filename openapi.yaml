@@ -40,6 +40,56 @@ paths:
                 items:
                   $ref: '#/components/schemas/CreditCardResponse'
 
+  /credit-cards/{id}/charges:
+    post:
+      summary: Registrar consumo con tarjeta de credito
+      operationId: chargeCard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovementRequest'
+      responses:
+        '201':
+          description: Consumo registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovementResponse'
+        '400':
+          description: Monto invalido, tarjeta inactiva o monto supera saldo disponible
+        '404':
+          description: Tarjeta no encontrada
+
+  /credit-cards/{id}/movements:
+    get:
+      summary: Listar movimientos de una tarjeta (del mas reciente al mas antiguo)
+      operationId: getMovements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de movimientos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MovementResponse'
+        '404':
+          description: Tarjeta no encontrada
+
   /credit-cards/{id}:
     get:
       summary: Buscar tarjeta por ID
@@ -141,3 +191,28 @@ components:
         status:
           type: string
           enum: [ACTIVE]
+
+    MovementRequest:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          description: Monto del consumo (debe ser mayor a cero)
+
+    MovementResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        cardId:
+          type: string
+        movementType:
+          type: string
+          enum: [CARD_CHARGE]
+        amount:
+          type: number
+        occurredAt:
+          type: string
+          format: date-time

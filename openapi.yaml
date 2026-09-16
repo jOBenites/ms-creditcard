@@ -1,0 +1,218 @@
+openapi: 3.0.3
+info:
+  title: ms-creditcard
+  description: Microservicio de gestión de tarjetas de crédito del sistema bancario.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8084
+
+paths:
+  /credit-cards:
+    post:
+      summary: Emitir una tarjeta de crédito
+      operationId: issueCreditCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueCardRequest'
+      responses:
+        '201':
+          description: Tarjeta emitida exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCardResponse'
+        '400':
+          description: Cliente inexistente, tipo inconsistente o limite invalido
+    get:
+      summary: Listar todas las tarjetas
+      operationId: getAllCreditCards
+      responses:
+        '200':
+          description: Lista de tarjetas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreditCardResponse'
+
+  /credit-cards/{id}/charges:
+    post:
+      summary: Registrar consumo con tarjeta de credito
+      operationId: chargeCard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovementRequest'
+      responses:
+        '201':
+          description: Consumo registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovementResponse'
+        '400':
+          description: Monto invalido, tarjeta inactiva o monto supera saldo disponible
+        '404':
+          description: Tarjeta no encontrada
+
+  /credit-cards/{id}/movements:
+    get:
+      summary: Listar movimientos de una tarjeta (del mas reciente al mas antiguo)
+      operationId: getMovements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de movimientos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MovementResponse'
+        '404':
+          description: Tarjeta no encontrada
+
+  /credit-cards/{id}:
+    get:
+      summary: Buscar tarjeta por ID
+      operationId: getCreditCardById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tarjeta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCardResponse'
+        '404':
+          description: Tarjeta no encontrada
+    put:
+      summary: Actualizar linea de credito
+      operationId: updateCreditCard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditCardUpdateRequest'
+      responses:
+        '200':
+          description: Tarjeta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditCardResponse'
+        '404':
+          description: Tarjeta no encontrada
+    delete:
+      summary: Eliminar tarjeta
+      operationId: deleteCreditCard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Tarjeta eliminada
+        '404':
+          description: Tarjeta no encontrada
+
+components:
+  schemas:
+    IssueCardRequest:
+      type: object
+      required:
+        - customerId
+        - cardType
+        - creditLimit
+      properties:
+        customerId:
+          type: string
+          description: Cliente al que se emite (debe existir en la vista local alimentada por eventos)
+        cardType:
+          type: string
+          enum: [PERSONAL, BUSINESS]
+          description: Debe ser consistente con el tipo de cliente
+        creditLimit:
+          type: number
+          description: Linea de credito, mayor a cero
+
+    CreditCardUpdateRequest:
+      type: object
+      properties:
+        creditLimit:
+          type: number
+
+    CreditCardResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        cardType:
+          type: string
+          enum: [PERSONAL, BUSINESS]
+        creditLimit:
+          type: number
+        availableBalance:
+          type: number
+        status:
+          type: string
+          enum: [ACTIVE]
+
+    MovementRequest:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          description: Monto del consumo (debe ser mayor a cero)
+
+    MovementResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        cardId:
+          type: string
+        movementType:
+          type: string
+          enum: [CARD_CHARGE]
+        amount:
+          type: number
+        occurredAt:
+          type: string
+          format: date-time
